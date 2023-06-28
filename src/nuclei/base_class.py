@@ -34,9 +34,6 @@ class Nucleus:
     def __repr__(self):
         return str(self.nucleus)
 
-
-
-
 if __name__ == '__main__':
     a = Nucleus(3)
     print(a.inference(range(1, 4)))
