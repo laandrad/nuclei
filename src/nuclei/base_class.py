@@ -1,5 +1,6 @@
-from typing import Union
+from typing import Union, List, Optional
 from pprint import pprint
+from pydantic import BaseModel
 import numpy as np
 
 
@@ -13,58 +14,67 @@ class Nuclei:
     If the spikes and expected stimulus are the same, the nuclei gets excited.
     Otherwise, the nuclei weights are perturbed via a random jitter.
     Arguments:
-        n: the size of the stimulus
-        h: the number of nuclei per layer. If `int` then all layers have equal size.
+        input_size: the size of the stimulus
+        num_layers: the number of nuclei per layer. If `int` then all layers have equal size.
             if `list` then its `len` should be equal to depth.
         depth: the number of layers.
     """
-    def __init__(self, n: int, h: Union[int, list], depth: int):
-        assert h > 1, 'h parameter needs to be > 1.'
-        assert depth > 1, 'depth parameter needs to be > 1.'
-        self.n = n
-        self.h = h
-        if isinstance(h, int):
-            self.h = [h] * depth
-        self.h = [self.n] + self.h
-        self.depth = depth - 1
-        self.layers = None
-        self.temperature = 1
+    def __init__(self, input_size: int,
+                 nuc_per_layers: Union[int, List[int]],
+                 depth: int,
+                 temperature: float = 0.5,
+                 lr: float = 1e-5):
+        # assert nuc_per_layers > 1, 'nuc_per_layers parameter needs to be > 1.'
+        # assert depth > 1, 'depth parameter needs to be > 1.'
+        self.input_size = input_size
+        if isinstance(nuc_per_layers, list):
+            self.nuc_per_layers = [self.input_size] + nuc_per_layers
+        else:
+            self.nuc_per_layers = [self.input_size] + [nuc_per_layers]
+        # if isinstance(nuc_per_layers, int):
+        #     self.nuc_per_layers = [nuc_per_layers] * depth
+        # self.nuc_per_layers = [self.input_size] + self.nuc_per_layers
+        self.depth = depth
+        self.temperature = temperature
+        self.lr = lr
+        self.layers: Optional[dict] = None
         self._build()
 
     def condition(self, x_stimuli: np.array, y_stimuli: np.array, batch: int, steps: int):
-        assert len(x_stimuli) == len(y_stimuli), 'x and y lengths should be the same.'
+        assert len(x_stimuli) == len(y_stimuli), 'x and y should be the same length.'
         temps = []
         vals = []
+        best_excitation = None
         for step in range(steps):
-            spikes, excitation = self._condition(x_stimuli, y_stimuli, batch)
-            # print(f'{step = }, {spikes = }, {excited = }, {self.temperature = }')
-            if excitation < self.temperature:
-                self._jitter()
+            old_architecture = self.layers.copy()
+            self._jitter()
+            _, excitation = self._test(x_stimuli, y_stimuli, batch)
+            if not best_excitation:
+                best_excitation = excitation
+                continue
+            if best_excitation < self.temperature:
+                print(f'{best_excitation}, {self.temperature}, this should break')
+                break
+            elif excitation <= best_excitation:
+                best_excitation = excitation
             else:
-                self.temperature *= 0.99
-            temps.append(self.temperature)
-            vals.append(self._validate(x_stimuli, y_stimuli)[1])
+                self.layers = old_architecture
+            vals.append(best_excitation)
         return {'temps': temps, 'vals': vals}
 
-    def _validate(self, x_stimuli: np.array, y_stimuli: np.array):
+    def validate(self, x_stimuli: np.array, y_stimuli: np.array):
         spikes = []
-        for stimulus in x_stimuli:
-            spikes.append(self.project(stimulus))
-        excitation = 1 - (y_stimuli - np.array(spikes)).mean()
+        errors = []
+        for stimulus, target in zip(x_stimuli, y_stimuli):
+            spike = self.project(stimulus)
+            error = (target - spike)**2
+            spikes.append(spike)
+            errors.append(error)
+        excitation = np.sqrt(np.mean(errors))
         return spikes, excitation
 
-    def _condition(self, x_stimuli: np.array, y_stimuli: np.array, batch):
-        ids = rng.choice(range(len(x_stimuli)), size=batch)
-        x = x_stimuli[ids]
-        y = y_stimuli[ids]
-        return self._validate(x, y)
-
-    def _jitter(self):
-        for layer in self.layers:
-            for nucleus in self.layers[layer]:
-                self.layers[layer][nucleus].jitter()
-
     def project(self, stimulus: np.array) -> float:
+        spike = None
         layer_stimuli = stimulus.copy()
         for layer in self.layers:
             spikes = []
@@ -74,77 +84,29 @@ class Nuclei:
             layer_stimuli = spikes
         return spike
 
+    def _test(self, x_stimuli: np.array, y_stimuli: np.array, batch):
+        ids = rng.choice(range(len(x_stimuli)), size=batch)
+        x = x_stimuli[ids]
+        y = y_stimuli[ids]
+        return self.validate(x, y)
+
+    def _jitter(self):
+        for layer in self.layers:
+            for nucleus in self.layers[layer]:
+                self.layers[layer][nucleus].jitter()
+
     def _build(self):
+        j = None
         layers = {}
         for j in range(self.depth):
-            layer = {f'Nucleus_{i}': Nucleus(self.h[j]) for i in range(self.h[j])}
+            layer = {f'Nucleus_{i}': Nucleus(self.nuc_per_layers[j], self.lr, linear=True)
+                     for i in range(self.nuc_per_layers[j])}
             layers[f'Layer_{j}'] = layer
-        layers[f'Layer_{j + 1}'] = {'Final_Nucleus': Nucleus(self.h[-1])}
+        # if j:
+        #     layers[f'Layer_{j + 1}'] = {'Final_Nucleus': Nucleus(self.nuc_per_layers[-1],
+        #                                                          lr=self.lr,
+        #                                                          linear=False)}
         self.layers = layers
 
     def __repr__(self):
         return str(pprint(self.layers))
-
-
-class Nucleus:
-    """Creates a nucleus object. A nucleus takes stimulus and can either project it or jitter."""
-    def __init__(self, n: int):
-        assert n > 1, 'Size of stimulus needs to be > 1.'
-        self.n = n
-        self.nucleus = np.zeros((n, n))
-
-    def jitter(self, lr: float = 0.005):
-        """Perturbs the nucleus' weights. Skips diagonal, which represents the stimulus."""
-        for i in range(self.n):
-            for j in range(self.n):
-                if i != j:
-                    self._jitter_i_j(i, j, lr)
-
-    def _jitter_i_j(self, i: int, j: int, lr: float):
-        """Perturbs the i, j nucleus' weight."""
-        jitter = rng.standard_normal() * lr
-        self.nucleus[i, j] += jitter
-
-    def project(self, stimulus: np.array) -> float:
-        """Projects the stimulus through the nucleus and returns a spike (a negative or positive signal)."""
-        self._fill_diag(stimulus)
-        return self._project()
-
-    def _fill_diag(self, stimulus: np.array):
-        """Passes the simulus values to the nucleus."""
-        return np.fill_diagonal(self.nucleus, stimulus)
-
-    def _project(self) -> float:
-        """Converts the nucleus weights into a scalar."""
-        return np.linalg.det(self.nucleus)
-        # return np.sign(np.linalg.det(self.nucleus))
-
-    def __repr__(self):
-        return str(self.nucleus)
-
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-    Y = np.array([1, 1, 1, -1])
-    a = Nuclei(n=2, h=3, depth=3)
-    results = a.condition(X, Y, batch=3, steps=1000)
-    plt.plot(results['temps'])
-    plt.title('Temperature')
-    plt.show()
-    plt.plot(results['vals'])
-    plt.title('Validation')
-    plt.show()
-    # # Train
-    # for x, y in zip(X, Y):
-    #     print('---')
-    #     for epoch in range(50):
-    #         a.process(x, y)
-    #         # print(a)
-    #         # time.sleep(2)
-    # # Test
-    # for x, y in zip(X, Y):
-    #     pred = a.activate(x)
-    #     print(f'{x = }, {y = }, {pred = }, {pred == y}')
-
-
