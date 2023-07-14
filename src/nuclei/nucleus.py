@@ -4,7 +4,7 @@ import numpy as np
 rng = np.random.default_rng(12345)
 
 
-class Nucleus:
+class BaseNucleus:
     """Creates a nucleus object. A nucleus takes stimulus and can either project it or jitter.
     Arguments:
         n: The input size.
@@ -35,7 +35,12 @@ class Nucleus:
         """Converts the nucleus weights into a scalar."""
         if linear:
             return np.linalg.det(nucleus)
-        return 2 if np.linalg.det(nucleus) > 0 else 0
+        return 1 if np.linalg.det(nucleus) > 0 else 0
 
     def __repr__(self):
         return str(self.nucleus)
+
+
+class Nucleus:
+    def __init__(self):
+        pass

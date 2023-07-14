@@ -1,6 +1,7 @@
 import numpy as np
 import copy
 from itertools import product
+from tqdm import tqdm
 
 
 rng = np.random.default_rng(12345)
@@ -19,7 +20,8 @@ class Anneal:
         loss = []
 
         for e in self.epochs:
-            for k in self.steps:
+            print('Epoch:', e + 1)
+            for k in tqdm(self.steps, desc=f'training in epoch {e + 1}'):
                 b = generate_solution(best)
                 best = compare_energies(best, b, stimuli['x'], stimuli['y'], absolute_error, self.temp)
                 cost = fit(best, stimuli['x'], stimuli['y'], absolute_error)
@@ -27,6 +29,7 @@ class Anneal:
                 if cost == 0:
                     break
             self.temp *= 0.9
+            print(f'Epoch training loss: {np.mean(loss)}')
 
         return best, loss
 

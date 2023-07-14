@@ -103,7 +103,7 @@ class Nuclei:
                      for i in range(self.nuc_per_layers[j])}
             layers[f'Layer_{j}'] = layer
         # if j:
-        #     layers[f'Layer_{j + 1}'] = {'Final_Nucleus': Nucleus(self.nuc_per_layers[-1],
+        #     layers[f'Layer_{j + 1}'] = {'Final_Nucleus': BaseNucleus(self.nuc_per_layers[-1],
         #                                                          lr=self.lr,
         #                                                          linear=False)}
         self.layers = layers
