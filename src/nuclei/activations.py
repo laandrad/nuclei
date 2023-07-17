@@ -39,4 +39,6 @@ class Sigmoid(Activation):
         super(Sigmoid, self).__init__()
 
     def fit(self, x):
-        return 1 / (1 + np.exp(-x))
+        denominator = 1 + np.exp(-x)
+        if not any(d == 0 for d in denominator):
+            return 1 / denominator

@@ -41,13 +41,16 @@ class BaseNucleus1B(Nucleus):
         self.lr = lr
         self.activation = activation
         self.nucleus = np.ones((self.m, self.m))
+        self.feat_ids = list(range(1, self.m))
+        self.biases_ids = [(0, 0)]
 
     def project(self, stimulus: np.array) -> float:
-        """Projects the stimulus through the nucleus and returns a spike (a negative or positive signal)."""
-        stimulus_in = self.nucleus[0, 0] + stimulus
+        """Projects the stimulus through the nucleus and returns a spike."""
+        stimulus_in = np.ones(self.m)
+        stimulus_in[self.feat_ids] = stimulus
         shadow = copy.deepcopy(self.nucleus)
         np.fill_diagonal(shadow, stimulus_in)
-        return _project(shadow, self.activation)[0]
+        return _project(shadow, self.activation)
 
 
 class BaseNucleus(Nucleus):
@@ -60,44 +63,48 @@ class BaseNucleus(Nucleus):
         self.activation = activation
         self.nucleus = np.ones((self.m, self.m))
         self.feat_ids = list(range(1, self.m, 2))
-        self.biases_ids = list(range(0, self.m, 2))
+        self.biases_ids = list(zip(range(0, self.m, 2), range(0, self.m, 2)))
 
     def project(self, stimulus: np.array) -> float:
-        """Projects the stimulus through the nucleus and returns a spike (a negative or positive signal)."""
-        stimulus_in = list(zip([1] * self.m, stimulus))
+        """Projects the stimulus through the nucleus and returns a spike."""
+        stimulus_in = np.ones(self.m)
+        stimulus_in[self.feat_ids] = stimulus
         shadow = copy.deepcopy(self.nucleus)
         np.fill_diagonal(shadow, stimulus_in)
-        return _project(shadow, self.activation)[0]
+        return _project(shadow, self.activation)
 
 
 class LongNucleus(Nucleus):
-    """A 3-D version that outputs a list of outcomes."""
+    """A 3-D version with categorical outputs."""
     def __init__(self, input_size: int, output_size: Union[int, List[str]],
                  lr: float = 1e-5, activation: Activation() = Binary()):
         super(Nucleus, self).__init__()
         assert input_size > 1, 'Size of stimulus needs to be > 1.'
         self.m = input_size * 2
-        self.output_size = output_size
+        self.l = output_size
         self.lr = lr
         self.activation = activation
-        self.nucleus = np.ones((self.output_size, self.m, self.m))
+        self.nucleus = np.ones((self.l, self.m, self.m))
         self.feat_ids = list(range(1, self.m, 2))
-        self.biases_ids = list(range(0, self.m, 2))
+        self.biases_ids = list(zip(range(self.l), range(0, self.m, 2), range(0, self.m, 2)))
 
     def project(self, stimulus: np.array) -> List[float]:
-        """Projects the stimulus through the nucleus and returns a spike (a negative or positive signal)."""
-        shadow = copy.deepcopy(self.nucleus)
-        stimulus_in = list(zip([1] * self.m, stimulus))
-        stimulus_in = np.array(stimulus_in * self.output_size).reshape(self.output_size, self.m)
+        """Projects the stimulus through the nucleus and returns a spike."""
+        stimulus_in = np.ones(self.m)
+        stimulus_in[self.feat_ids] = stimulus
         r = np.arange(self.m)
-        shadow.nucleus[:, r, r] = stimulus_in
+        shadow = copy.deepcopy(self.nucleus)
+        shadow[:, r, r] = stimulus_in
         return _project(shadow, self.activation)
 
 
-def _project(nucleus: np.array, activation: Activation) -> List[float]:
+def _project(nucleus: np.array, activation: Activation) -> Union[float, List[float]]:
     """Converts the nucleus weights into a scalar."""
-    determinants = get_determinant(nucleus)
-    return [activation.fit(d) for d in determinants]
+    determinant = get_determinant(nucleus)
+    if isinstance(determinant, list):
+        return [activation.fit(d) for d in determinant]
+    else:
+        return activation.fit(determinant)
 
 
 def get_determinant(a, slog=True):

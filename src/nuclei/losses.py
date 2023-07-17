@@ -53,4 +53,4 @@ class CrossEntropy(Loss):
     def fit(self, y, y_hat):
         y = np.array(y)
         y_hat = np.array(y_hat)
-        return -np.mean(y * np.log(y_hat) + (1 - y) * np.log(1 - y_hat))
+        return -np.nanmean(y * np.log(y_hat) + (1 - y) * np.log(1 - y_hat))
