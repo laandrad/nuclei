@@ -1,3 +1,4 @@
+import numpy as np
 from abc import ABC
 
 
@@ -31,3 +32,11 @@ class Relu(Activation):
 
     def fit(self, x):
         return x if x > 0 else 0
+
+
+class Sigmoid(Activation):
+    def __init__(self):
+        super(Sigmoid, self).__init__()
+
+    def fit(self, x):
+        return 1 / (1 + np.exp(-x))
