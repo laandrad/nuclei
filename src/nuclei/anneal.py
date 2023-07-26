@@ -25,7 +25,7 @@ class Anneal(ABC):
 
 class BaseAnneal(Anneal):
     def __init__(self, nucleus: BaseNucleus, temp: float, loss_func: Loss() = MAE(), steps=5, epochs=1):
-        super(Anneal, self).__init__()
+        super(BaseAnneal, self).__init__(nucleus, temp, loss_func, steps, epochs)
         self.nucleus = nucleus
         self.loss = loss_func
         self.temp = temp
@@ -53,7 +53,7 @@ class BaseAnneal(Anneal):
 
 class LongAnneal(Anneal):
     def __init__(self, nucleus: LongNucleus, temp: float, loss_func: Loss() = MAE(), steps=5, epochs=1):
-        super(Anneal, self).__init__()
+        super(LongAnneal, self).__init__(nucleus, temp, loss_func, steps, epochs)
         self.nucleus = nucleus
         self.loss = loss_func
         self.temp = temp
@@ -86,7 +86,7 @@ class LongAnneal(Anneal):
                 preds = forward(best, test['x'])
                 val = self.loss.fit(test['y'], preds)
                 val_losses.append({'train': cost, 'val': val})
-                print(f'Epoch {e + 1} validation error: {val}')
+                print(f'Epoch {e + 1} validation loss: {val}')
             print(f'Epoch training loss: {np.mean(losses[-len(self.steps):])}')
 
         return best, losses, val_losses
