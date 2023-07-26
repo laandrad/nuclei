@@ -2,7 +2,7 @@ import copy
 
 import numpy as np
 from abc import ABC
-from typing import Union, List
+from typing import Union, List, Tuple
 from src.nuclei.activations import Activation, Binary
 
 
@@ -98,10 +98,34 @@ class LongNucleus(Nucleus):
         return _project(shadow, self.activation)
 
 
+class LongNucleus1B(Nucleus):
+    """A 3-D version with categorical outputs."""
+    def __init__(self, input_size: int, output_size: Union[int, List[str]],
+                 lr: float = 1e-5, activation: Activation() = Binary()):
+        super(Nucleus, self).__init__()
+        assert input_size > 1, 'Size of stimulus needs to be > 1.'
+        self.m = input_size + 1
+        self.l = output_size
+        self.lr = lr
+        self.activation = activation
+        self.nucleus = np.ones((self.l, self.m, self.m))
+        self.feat_ids = list(range(1, self.m))
+        self.biases_ids = [(0, 0, 0)]
+
+    def project(self, stimulus: np.array) -> List[float]:
+        """Projects the stimulus through the nucleus and returns a spike."""
+        stimulus_in = np.ones(self.m)
+        stimulus_in[self.feat_ids] = stimulus
+        r = np.arange(self.m)
+        shadow = copy.deepcopy(self.nucleus)
+        shadow[:, r, r] = stimulus_in
+        return _project(shadow, self.activation)
+
+
 def _project(nucleus: np.array, activation: Activation) -> Union[float, List[float]]:
     """Converts the nucleus weights into a scalar."""
     determinant = get_determinant(nucleus)
-    if isinstance(determinant, list):
+    if len(determinant) > 1:
         return [activation.fit(d) for d in determinant]
     else:
         return activation.fit(determinant)
