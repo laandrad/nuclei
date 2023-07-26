@@ -40,5 +40,7 @@ class Sigmoid(Activation):
 
     def fit(self, x):
         denominator = 1 + np.exp(-x)
+        if isinstance(denominator, float):
+            return 1 / denominator
         if not any(d == 0 for d in denominator):
             return 1 / denominator

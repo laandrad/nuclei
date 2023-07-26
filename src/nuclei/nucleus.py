@@ -125,10 +125,10 @@ class LongNucleus1B(Nucleus):
 def _project(nucleus: np.array, activation: Activation) -> Union[float, List[float]]:
     """Converts the nucleus weights into a scalar."""
     determinant = get_determinant(nucleus)
-    if len(determinant) > 1:
-        return [activation.fit(d) for d in determinant]
-    else:
+    if isinstance(determinant, float):
         return activation.fit(determinant)
+    else:
+        return [activation.fit(d) for d in determinant]
 
 
 def get_determinant(a, slog=True):

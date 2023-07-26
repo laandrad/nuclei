@@ -51,6 +51,11 @@ class CrossEntropy(Loss):
         super(CrossEntropy, self).__init__()
 
     def fit(self, y, y_hat):
+        small_delta = 1e-10
         y = np.array(y)
         y_hat = np.array(y_hat)
+        if y.any() == 0:
+            y += small_delta
+        if y_hat.any() == 0:
+            y_hat += small_delta
         return -np.nanmean(y * np.log(y_hat) + (1 - y) * np.log(1 - y_hat))
