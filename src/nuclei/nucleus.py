@@ -2,8 +2,9 @@ import copy
 
 import numpy as np
 from abc import ABC
+from itertools import product
 from typing import Union, List, Tuple
-from src.nuclei.activations import Activation, Binary
+from src.nuclei.activations import Activation, Sigmoid
 
 
 rng = np.random.default_rng(12345)
@@ -28,14 +29,17 @@ class Nucleus(ABC):
     def project(self, stimulus):
         pass
 
+    def jitter(self):
+        pass
+
     def __repr__(self):
         return str(self.nucleus)
 
 
 class BaseNucleus1B(Nucleus):
     """A 2-D array with stimuli projected through the diagonal with only 1 bias."""
-    def __init__(self, input_size: int, lr: float = 1e-5, activation: Activation() = Binary()):
-        super(BaseNucleus1B, self).__init__(input_size, lr, activation)
+    def __init__(self, input_size: int, lr: float = 1e-5, activation: Activation() = Sigmoid()):
+        super().__init__(input_size, lr, activation)
         assert input_size > 1, 'Size of stimulus needs to be > 1.'
         self.m = input_size + 1
         self.lr = lr
@@ -55,8 +59,8 @@ class BaseNucleus1B(Nucleus):
 
 class BaseNucleus(Nucleus):
     """A 2-D array with stimuli projected through the diagonal with 1 bias per input feature."""
-    def __init__(self, input_size: int, lr: float = 1e-5, activation: Activation() = Binary()):
-        super(BaseNucleus, self).__init__(input_size, lr, activation)
+    def __init__(self, input_size: int, lr: float = 1e-5, activation: Activation() = Sigmoid()):
+        super().__init__(input_size, lr, activation)
         assert input_size > 1, 'Size of stimulus needs to be > 1.'
         self.m = input_size * 2
         self.lr = lr
@@ -73,12 +77,21 @@ class BaseNucleus(Nucleus):
         np.fill_diagonal(shadow, stimulus_in)
         return _project(shadow, self.activation)
 
+    def jitter(self):
+        """Perturbs the nucleus' weights. Skips the stimulus indices."""
+        jitter = rng.standard_normal() * self.lr
+        all_i_j = product(range(self.m), range(self.m))
+        list_i_j = [(i, j) for i, j in all_i_j if i != j] + self.biases_ids
+        random_i_j = rng.choice(list_i_j, 3)
+        for i, j in random_i_j:
+            self.nucleus[i, j] += jitter
+
 
 class LongNucleus(Nucleus):
     """A 3-D version with categorical outputs."""
-    def __init__(self, input_size: int, output_size: Union[int, List[str]],
-                 lr: float = 1e-5, activation: Activation() = Binary()):
-        super(Nucleus, self).__init__()
+    def __init__(self, input_size: int, output_size: Union[int, List[str]], lr: float = 1e-5,
+                 activation: Activation() = Sigmoid()):
+        super().__init__(input_size, lr, activation)
         assert input_size > 1, 'Size of stimulus needs to be > 1.'
         self.m = input_size * 2
         self.l = output_size
@@ -97,12 +110,21 @@ class LongNucleus(Nucleus):
         shadow[:, r, r] = stimulus_in
         return _project(shadow, self.activation)
 
+    def jitter(self):
+        """Perturbs the nucleus' weights. Skips the stimulus indices."""
+        jitter = rng.standard_normal() * self.lr
+        all_idx = product(range(self.l), range(self.m), range(self.m))
+        list_idx = [(l, i, j) for l, i, j in all_idx if i != j] + self.biases_ids
+        random_idx = rng.choice(list_idx, 3)
+        for l, i, j in random_idx:
+            self.nucleus[l, i, j] += jitter
+
 
 class LongNucleus1B(Nucleus):
     """A 3-D version with categorical outputs."""
-    def __init__(self, input_size: int, output_size: Union[int, List[str]],
-                 lr: float = 1e-5, activation: Activation() = Binary()):
-        super(Nucleus, self).__init__()
+    def __init__(self, input_size: int, output_size: Union[int, List[str]], lr: float = 1e-5,
+                 activation: Activation() = Sigmoid()):
+        super().__init__(input_size, lr, activation)
         assert input_size > 1, 'Size of stimulus needs to be > 1.'
         self.m = input_size + 1
         self.l = output_size
