@@ -11,7 +11,7 @@ rng = np.random.default_rng(12345)
 
 
 class Nucleus(ABC):
-    """Creates a nucleus object. A nucleus takes stimulus of size `input_size` and can project it through
+    """Creates a nucleus object. A nucleus takes stimuli of size `input_size` and can project it through
     producing a scalar.
     Arguments:
         m: The input size.
@@ -40,7 +40,7 @@ class BaseNucleus1B(Nucleus):
     """A 2-D array with stimuli projected through the diagonal with only 1 bias."""
     def __init__(self, input_size: int, lr: float = 1e-5, activation: Activation() = Sigmoid()):
         super().__init__(input_size, lr, activation)
-        assert input_size > 1, 'Size of stimulus needs to be > 1.'
+        assert input_size > 1, 'Size of stimuli needs to be > 1.'
         self.m = input_size + 1
         self.lr = lr
         self.activation = activation
@@ -49,7 +49,7 @@ class BaseNucleus1B(Nucleus):
         self.biases_ids = [(0, 0)]
 
     def project(self, stimulus: np.array) -> float:
-        """Projects the stimulus through the nucleus and returns a spike."""
+        """Projects the stimuli through the nucleus and returns a spike."""
         stimulus_in = np.ones(self.m)
         stimulus_in[self.feat_ids] = stimulus
         shadow = copy.deepcopy(self.nucleus)
@@ -61,7 +61,7 @@ class BaseNucleus(Nucleus):
     """A 2-D array with stimuli projected through the diagonal with 1 bias per input feature."""
     def __init__(self, input_size: int, lr: float = 1e-5, activation: Activation() = Sigmoid()):
         super().__init__(input_size, lr, activation)
-        assert input_size > 1, 'Size of stimulus needs to be > 1.'
+        assert input_size > 1, 'Size of stimuli needs to be > 1.'
         self.m = input_size * 2
         self.lr = lr
         self.activation = activation
@@ -70,7 +70,7 @@ class BaseNucleus(Nucleus):
         self.biases_ids = list(zip(range(0, self.m, 2), range(0, self.m, 2)))
 
     def project(self, stimulus: np.array) -> float:
-        """Projects the stimulus through the nucleus and returns a spike."""
+        """Projects the stimuli through the nucleus and returns a spike."""
         stimulus_in = np.ones(self.m)
         stimulus_in[self.feat_ids] = stimulus
         shadow = copy.deepcopy(self.nucleus)
@@ -78,7 +78,7 @@ class BaseNucleus(Nucleus):
         return _project(shadow, self.activation)
 
     def jitter(self):
-        """Perturbs the nucleus' weights. Skips the stimulus indices."""
+        """Perturbs the nucleus' weights. Skips the stimuli indices."""
         jitter = rng.standard_normal() * self.lr
         all_i_j = product(range(self.m), range(self.m))
         list_i_j = [(i, j) for i, j in all_i_j if i != j] + self.biases_ids
@@ -92,7 +92,7 @@ class LongNucleus(Nucleus):
     def __init__(self, input_size: int, output_size: Union[int, List[str]], lr: float = 1e-5,
                  activation: Activation() = Sigmoid()):
         super().__init__(input_size, lr, activation)
-        assert input_size > 1, 'Size of stimulus needs to be > 1.'
+        assert input_size > 1, 'Size of stimuli needs to be > 1.'
         self.m = input_size * 2
         self.l = output_size
         self.lr = lr
@@ -102,7 +102,7 @@ class LongNucleus(Nucleus):
         self.biases_ids = list(zip(range(self.l), range(0, self.m, 2), range(0, self.m, 2)))
 
     def project(self, stimulus: np.array) -> List[float]:
-        """Projects the stimulus through the nucleus and returns a spike."""
+        """Projects the stimuli through the nucleus and returns a spike."""
         stimulus_in = np.ones(self.m)
         stimulus_in[self.feat_ids] = stimulus
         r = np.arange(self.m)
@@ -111,7 +111,7 @@ class LongNucleus(Nucleus):
         return _project(shadow, self.activation)
 
     def jitter(self):
-        """Perturbs the nucleus' weights. Skips the stimulus indices."""
+        """Perturbs the nucleus' weights. Skips the stimuli indices."""
         jitter = rng.standard_normal() * self.lr
         all_idx = product(range(self.l), range(self.m), range(self.m))
         list_idx = [(l, i, j) for l, i, j in all_idx if i != j] + self.biases_ids
@@ -125,7 +125,7 @@ class LongNucleus1B(Nucleus):
     def __init__(self, input_size: int, output_size: Union[int, List[str]], lr: float = 1e-5,
                  activation: Activation() = Sigmoid()):
         super().__init__(input_size, lr, activation)
-        assert input_size > 1, 'Size of stimulus needs to be > 1.'
+        assert input_size > 1, 'Size of stimuli needs to be > 1.'
         self.m = input_size + 1
         self.l = output_size
         self.lr = lr
@@ -135,7 +135,7 @@ class LongNucleus1B(Nucleus):
         self.biases_ids = [(0, 0, 0)]
 
     def project(self, stimulus: np.array) -> List[float]:
-        """Projects the stimulus through the nucleus and returns a spike."""
+        """Projects the stimuli through the nucleus and returns a spike."""
         stimulus_in = np.ones(self.m)
         stimulus_in[self.feat_ids] = stimulus
         r = np.arange(self.m)
